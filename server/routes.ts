@@ -135,6 +135,16 @@ chart.set_categories(cats_ref)
 ws2.add_chart(chart, "D2")
 changes.append({"type": "add", "description": "Добавлен Лист2 с графиком пробега", "detail": f"{len(by_period)} периодов"})`;
 
+// ─── Fix multer filename encoding (multer reads UTF-8 bytes as Latin-1) ────────
+function fixFilename(name: string): string {
+  try {
+    // Re-encode: treat the string as Latin-1 bytes → decode as UTF-8
+    return Buffer.from(name, "latin1").toString("utf8");
+  } catch {
+    return name;
+  }
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 export function registerRoutes(httpServer: Server, app: Express) {
 
@@ -153,10 +163,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/analyze-file", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     try {
-      const result = await pyAnalyze(req.file.path, req.file.originalname);
+      const result = await pyAnalyze(req.file.path, fixFilename(req.file.originalname));
       if (!result.ok) return res.status(422).json({ error: result.error });
       res.json({
-        filename: req.file.originalname,
+        filename: fixFilename(req.file.originalname),
         size: req.file.size,
         sheets: result.sheets,
         tempPath: req.file.path,
@@ -179,7 +189,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     try {
       // 1. Analyze structure
-      const analysis = await pyAnalyze(req.file.path, req.file.originalname);
+      const analysis = await pyAnalyze(req.file.path, fixFilename(req.file.originalname));
       if (!analysis.ok) return res.status(422).json({ error: analysis.error });
 
       // 2. Build LLM prompt with file structure
@@ -202,10 +212,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
         .trim();
 
       // 4. Execute code on the file
-      const origName = req.file.originalname.replace(/\.(xlsx|xls|xlsm)$/i, "");
+      const origName = fixFilename(req.file.originalname).replace(/\.(xlsx|xls|xlsm)$/i, "");
       tempOutput = path.join(os.tmpdir(), `xls_out_${Date.now()}_${origName}_updated.xlsx`);
 
-      const execResult = await pyExecute(req.file.path, tempOutput, cleanCode, req.file.originalname);
+      const execResult = await pyExecute(req.file.path, tempOutput, cleanCode, fixFilename(req.file.originalname));
 
       if (!execResult.ok) {
         return res.status(422).json({
