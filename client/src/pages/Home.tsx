@@ -167,7 +167,10 @@ export default function Home() {
 
       setChanges(data.changes || []);
       setDownloadUrl(url);
-      setDownloadName(data.filename || "updated.xlsx");
+      // Add model suffix to filename so browser treats each result as a new file
+      const baseName = (data.filename || "updated.xlsx").replace(/\.xlsx$/i, "");
+      const modelSuffix = (currentModel?.label || modelId).replace(/[^a-zA-Z0-9а-яА-Я]/g, "_");
+      setDownloadName(`${baseName}_${modelSuffix}.xlsx`);
       setUsedModelLabel(currentModel?.label || modelId);
       setResultKey(k => k + 1);
       setLoadingStep(4);
