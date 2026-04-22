@@ -2,6 +2,9 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+// Resolve correct API base (handles __PORT_5001__ token replacement after deploy)
+const API_BASE = "__PORT_5001__".startsWith("__") ? "" : "__PORT_5001__";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface SheetInfo {
   name: string;
@@ -99,7 +102,7 @@ export default function Home() {
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const res = await fetch("/api/analyze-file", { method: "POST", body: fd });
+      const res = await fetch(`${API_BASE}/api/analyze-file`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
       setAnalysis(data);
@@ -140,7 +143,7 @@ export default function Home() {
       fd.append("task", task);
       fd.append("modelId", modelId);
 
-      const res = await fetch("/api/process-file", { method: "POST", body: fd });
+      const res = await fetch(`${API_BASE}/api/process-file`, { method: "POST", body: fd });
 
       clearInterval(stepTimer);
 
