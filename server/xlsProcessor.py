@@ -161,17 +161,26 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
 
         wb = openpyxl.load_workbook(work_path)
 
+        from openpyxl.chart import BarChart, LineChart, PieChart, Reference, Series
+        from openpyxl.chart.series import DataPoint
+        from openpyxl.utils.dataframe import dataframe_to_rows
+        import datetime
+        import math
+
         safe_globals = {
             "__builtins__": {
                 "range": range, "len": len, "print": print,
                 "str": str, "int": int, "float": float, "bool": bool,
                 "list": list, "dict": dict, "tuple": tuple, "set": set,
+                "sorted": sorted, "reversed": reversed,
                 "enumerate": enumerate, "zip": zip, "map": map, "filter": filter,
                 "min": min, "max": max, "sum": sum, "abs": abs, "round": round,
                 "isinstance": isinstance, "type": type, "hasattr": hasattr,
                 "getattr": getattr, "setattr": setattr,
+                "any": any, "all": all, "next": next, "iter": iter,
                 "True": True, "False": False, "None": None,
-                "Exception": Exception, "ValueError": ValueError,
+                "Exception": Exception, "ValueError": ValueError, "KeyError": KeyError,
+                "IndexError": IndexError, "TypeError": TypeError,
             },
             "openpyxl": openpyxl,
             "PatternFill": PatternFill,
@@ -182,6 +191,14 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
             "get_column_letter": get_column_letter,
             "column_index_from_string": column_index_from_string,
             "re": re,
+            "datetime": datetime,
+            "math": math,
+            # Chart classes
+            "BarChart": BarChart,
+            "LineChart": LineChart,
+            "PieChart": PieChart,
+            "Reference": Reference,
+            "Series": Series,
             "wb": wb,
             "changes": [],
         }
