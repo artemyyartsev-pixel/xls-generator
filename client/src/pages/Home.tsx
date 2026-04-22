@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useLang } from "@/lib/LanguageContext";
 
 // Resolve correct API base (handles __PORT_5000__ token replacement after deploy)
 const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
@@ -34,14 +35,7 @@ interface Model {
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const EXAMPLES = [
-  { emoji: "📊", title: "Сводная колонка", task: "Добавь колонку «Прибыль» = Сумма × 0.3 для всех строк с данными" },
-  { emoji: "🎨", title: "Подсветка строк", task: "Выдели красным фоном все строки где значение в колонке «Статус» равно «Отменён»" },
-  { emoji: "📈", title: "Итоговая строка", task: "Добавь итоговую строку внизу таблицы с суммами числовых колонок и жирным шрифтом" },
-  { emoji: "🔍", title: "Удалить дубли", task: "Найди и удали строки-дубликаты, оставив первое вхождение" },
-  { emoji: "🗓️", title: "Сортировка", task: "Отсортируй данные по первой колонке с датой от новых к старым" },
-  { emoji: "🧹", title: "Очистка данных", task: "Убери лишние пробелы в начале и конце текста во всех ячейках, приведи текст к единому регистру" },
-];
+// EXAMPLES is now built dynamically inside the component using t
 
 const FALLBACK_MODELS: Model[] = [
   { id: "deepseek_v3", label: "DeepSeek V3", provider: "openrouter", available: true },
@@ -58,6 +52,14 @@ function formatBytes(b: number) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function Home() {
+  const { t, lang, setLang } = useLang();
+  const EXAMPLES = [
+    { emoji: "📊", title: t.ex1Title, task: t.ex1Task },
+    { emoji: "🎨", title: t.ex2Title, task: t.ex2Task },
+    { emoji: "📈", title: t.ex3Title, task: t.ex3Task },
+    { emoji: "🔍", title: t.ex4Title, task: t.ex4Task },
+    { emoji: "🗓️", title: t.ex5Title, task: t.ex5Task },
+  ];
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
@@ -113,7 +115,7 @@ export default function Home() {
     } catch (e: any) {
       setStatus("error");
       setErrorMsg(e.message);
-      toast({ title: "Ошибка анализа", description: e.message, variant: "destructive" });
+      toast({ title: t.toastAnalysisError, description: e.message, variant: "destructive" });
     }
   }, [toast]);
 
@@ -178,12 +180,12 @@ export default function Home() {
       setLoadingStep(4);
       setStatus("done");
 
-      toast({ title: `Готово! (${currentModel?.label || modelId})`, description: `Внесено изменений: ${(data.changes || []).length}` });
+      toast({ title: t.toastDoneTitle(currentModel?.label || modelId), description: t.toastDoneDesc((data.changes || []).length) });
     } catch (e: any) {
       clearInterval(stepTimer);
       setStatus("error");
       setErrorMsg(e.message);
-      toast({ title: "Ошибка обработки", description: e.message, variant: "destructive" });
+      toast({ title: t.toastProcessError, description: e.message, variant: "destructive" });
     }
   }
 
@@ -209,7 +211,7 @@ export default function Home() {
   const isLoading = status === "analyzing" || status === "processing";
 
   const LOADING_STEPS = [
-    "Анализирую структуру файла",
+    t.processingSteps[1],
     "Генерирую код обработки...",
     "Применяю изменения к файлу",
     "Формирую файл для скачивания",
@@ -234,8 +236,8 @@ export default function Home() {
               XLS
             </div>
             <div>
-              <div className="font-mono text-sm font-semibold" style={{ color: "#e6edf3" }}>AI Tools</div>
-              <div className="font-mono text-[10px]" style={{ color: "#8b949e" }}>для Excel</div>
+              <div className="font-mono text-sm font-semibold" style={{ color: "#e6edf3" }}>{t.headerTitle.split(" ").slice(0,2).join(" ")}</div>
+              <div className="font-mono text-[10px]" style={{ color: "#8b949e" }}>{t.headerTitle.split(" ").slice(2).join(" ")}</div>
             </div>
           </div>
 
@@ -251,7 +253,7 @@ export default function Home() {
               onMouseLeave={e => (e.currentTarget.style.color = "#8b949e")}
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#8b949e" }} />
-              VBA Generator
+              {t.tabVba}
             </a>
             <div className="flex items-center gap-1.5 px-3 py-[5px] rounded-md text-xs font-mono font-medium border" style={{ color: "#f97316", background: "rgba(249,115,22,0.12)", borderColor: "rgba(249,115,22,0.25)" }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f97316" }} />
@@ -259,10 +261,23 @@ export default function Home() {
             </div>
           </nav>
 
-          {/* Model badge */}
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[11px] border" style={{ color: "#f97316", background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.3)" }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f97316" }} />
-            {models.find(m => m.id === modelId)?.label || "DeepSeek V3"}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Language switcher */}
+            <button
+              onClick={() => setLang(lang === "ru" ? "en" : "ru")}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md font-mono text-[11px] border transition-all"
+              style={{ color: "#8b949e", borderColor: "#30363d", background: "transparent" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#e6edf3"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#8b949e"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#8b949e"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#30363d"; }}
+              title={lang === "ru" ? "Switch to English" : "Переключить на русский"}
+            >
+              {lang === "ru" ? "🇷🇺 RU" : "🇬🇧 EN"}
+            </button>
+            {/* Model badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[11px] border" style={{ color: "#f97316", background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.3)" }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f97316" }} />
+              {models.find(m => m.id === modelId)?.label || "DeepSeek V3"}
+            </div>
           </div>
         </div>
       </header>
@@ -274,14 +289,14 @@ export default function Home() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[11px] border mb-4" style={{ color: "#f97316", background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.25)" }}>
             <span className="w-2 h-2 rounded-full" style={{ background: "#f97316" }} />
-            XLS Generator — Beta
+            {t.heroBadge}
           </div>
           <h1 className="text-3xl font-bold font-mono mb-2" style={{ color: "#e6edf3" }}>
-            Загрузите Excel —{" "}
-            <span style={{ color: "#f97316" }}>получите доработанный файл</span>
+            {t.heroTitle1}{" "}
+            <span style={{ color: "#f97316" }}>{t.heroAccent}</span>
           </h1>
           <p className="text-sm max-w-md mx-auto leading-relaxed" style={{ color: "#8b949e" }}>
-            Опишите задачу на русском. ИИ проанализирует структуру, внесёт изменения и вернёт готовый .xlsx
+            {t.heroSub}
           </p>
         </div>
 
@@ -293,7 +308,7 @@ export default function Home() {
             <div className="rounded-xl border overflow-hidden" style={{ background: "#161b22", borderColor: "#30363d" }}>
               <div className="px-4 py-3 border-b flex items-center gap-2 font-mono text-xs font-semibold" style={{ borderColor: "#30363d", color: "#8b949e" }}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.2"/><path d="M4 5h6M4 7.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                ФАЙЛ И ЗАДАЧА
+                {t.panelFileTitle}
               </div>
               <div className="p-4">
 
@@ -322,13 +337,13 @@ export default function Home() {
                   {status === "analyzing" ? (
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-8 h-8 rounded-full border-2 border-t-orange-400 animate-spin" style={{ borderColor: "#30363d", borderTopColor: "#f97316" }} />
-                      <p className="text-xs font-mono" style={{ color: "#f97316" }}>Анализирую файл...</p>
+                      <p className="text-xs font-mono" style={{ color: "#f97316" }}>{t.processingSteps[1]}</p>
                     </div>
                   ) : analysis ? (
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-3xl">📊</span>
                       <p className="text-sm font-semibold font-mono" style={{ color: "#f97316" }}>{analysis.filename}</p>
-                      <p className="text-xs" style={{ color: "#8b949e" }}>Нажмите чтобы заменить</p>
+                      <p className="text-xs" style={{ color: "#8b949e" }}>{t.uploadReplace}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2">
@@ -338,8 +353,8 @@ export default function Home() {
                         <circle cx="27" cy="27" r="7" fill="#f97316"/>
                         <path d="M27 24v6M24 27l3-3 3 3" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
-                      <p className="text-sm font-semibold" style={{ color: "#e6edf3" }}>Загрузите Excel файл</p>
-                      <p className="text-xs" style={{ color: "#8b949e" }}>Перетащите .xlsx или кликните</p>
+                      <p className="text-sm font-semibold" style={{ color: "#e6edf3" }}>{t.uploadTitle}</p>
+                      <p className="text-xs" style={{ color: "#8b949e" }}>{t.uploadSub}</p>
                     </div>
                   )}
                 </div>
@@ -351,7 +366,7 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-mono font-semibold truncate" style={{ color: "#f97316" }}>{analysis.filename}</p>
                       <p className="text-[11px] mt-0.5" style={{ color: "#8b949e" }}>
-                        {analysis.sheets.length} {analysis.sheets.length === 1 ? "лист" : "листа"} · {analysis.sheets[0]?.row_count ?? 0} строк · {formatBytes(analysis.size)}
+                        {t.sheetLabel(analysis.sheets.length, analysis.sheets[0]?.row_count ?? 0, formatBytes(analysis.size))}
                       </p>
                     </div>
                     <button onClick={resetFile} className="text-lg leading-none mt-0.5 hover:text-red-400 transition-colors" style={{ color: "#8b949e" }}>×</button>
@@ -399,14 +414,14 @@ export default function Home() {
                 {/* Task textarea */}
                 <p className="text-[11px] font-mono mb-1.5 flex items-center gap-1.5" style={{ color: "#8b949e" }}>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.5 2.5h7M1.5 5h5.5M1.5 7.5h3.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
-                  Опишите задачу
+                  {t.taskLabel}
                 </p>
                 <textarea
                   data-testid="input-task"
                   value={task}
                   onChange={e => setTask(e.target.value)}
                   onKeyDown={e => { if (e.ctrlKey && e.key === "Enter") handleProcess(); }}
-                  placeholder="Например: добавь колонку «Прибыль» = Сумма × 0.3, выдели красным строки где Статус = «Отменён»..."
+                  placeholder={t.taskPlaceholder}
                   disabled={isLoading}
                   className="w-full rounded-lg text-sm leading-relaxed resize-none outline-none transition-all border"
                   style={{
@@ -423,7 +438,7 @@ export default function Home() {
 
                 {/* Model selector */}
                 <div className="flex items-center gap-2 mt-3 mb-3">
-                  <span className="text-[11px] font-mono flex-shrink-0" style={{ color: "#8b949e" }}>LLM модель</span>
+                  <span className="text-[11px] font-mono flex-shrink-0" style={{ color: "#8b949e" }}>{t.modelLabel}</span>
                   <select
                     data-testid="select-model"
                     value={modelId}
@@ -463,11 +478,11 @@ export default function Home() {
                   ) : (
                     <>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5v2M7 10.5v2M1.5 7h2M10.5 7h2M3.2 3.2l1.4 1.4M9.4 9.4l1.4 1.4M3.2 10.8l1.4-1.4M9.4 4.6l1.4-1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                      Обработать файл
+                      {t.processBtn}
                     </>
                   )}
                 </button>
-                <p className="text-[10px] text-center mt-1.5" style={{ color: "#8b949e" }}>Ctrl+Enter для запуска</p>
+                <p className="text-[10px] text-center mt-1.5" style={{ color: "#8b949e" }}>{t.processHint}</p>
 
               </div>
             </div>
@@ -475,7 +490,7 @@ export default function Home() {
             {/* Examples */}
             <div className="rounded-xl border overflow-hidden" style={{ background: "#161b22", borderColor: "#30363d" }}>
               <div className="px-4 py-2.5 border-b flex items-center gap-2 font-mono text-xs font-semibold" style={{ borderColor: "#30363d", color: "#8b949e" }}>
-                ✦ ГОТОВЫЕ ПРИМЕРЫ
+                {t.examplesTitle}
               </div>
               <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
                 {EXAMPLES.map((ex, i) => (
@@ -504,7 +519,7 @@ export default function Home() {
             <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: "#30363d" }}>
               <div className="flex items-center gap-2 font-mono text-xs font-semibold" style={{ color: "#8b949e" }}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2"/><path d="M3.5 4.5h6M3.5 7h4.5M3.5 9.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-                РЕЗУЛЬТАТ
+                {t.panelResultTitle}
               </div>
               {status === "done" && downloadUrl && (
                 <button
@@ -516,7 +531,7 @@ export default function Home() {
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
                   <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1v6.5M2.5 5.5l3 3 3-3M1 9.5h9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Скачать .xlsx
+                  {t.downloadBtn}
                 </button>
               )}
             </div>
@@ -527,10 +542,10 @@ export default function Home() {
               {status === "idle" && !analysis && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12" style={{ color: "#8b949e" }}>
                   <div className="w-14 h-14 rounded-2xl grid place-items-center text-3xl border" style={{ background: "#1c2128", borderColor: "#30363d" }}>📂</div>
-                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>Готов к обработке</p>
-                  <p className="text-xs text-center max-w-xs leading-relaxed">Загрузите Excel файл, опишите что нужно сделать — получите готовый файл</p>
+                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>{t.idleTitle}</p>
+                  <p className="text-xs text-center max-w-xs leading-relaxed">{t.idleSub}</p>
                   <div className="flex gap-2.5 mt-2">
-                    {["Загрузить файл", "Описать задачу", "Скачать результат"].map((s, i) => (
+                    {[t.idleStep1, t.idleStep2, t.idleStep3].map((s, i) => (
                       <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-mono text-[11px] border" style={{ borderColor: "#30363d", background: "#1c2128" }}>
                         <div className="w-4 h-4 rounded-full grid place-items-center text-[9px] font-bold" style={{ background: "#30363d" }}>{i + 1}</div>
                         {s}
@@ -544,8 +559,8 @@ export default function Home() {
               {status === "idle" && analysis && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12" style={{ color: "#8b949e" }}>
                   <div className="w-14 h-14 rounded-2xl grid place-items-center text-3xl border" style={{ background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.3)" }}>📊</div>
-                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>Файл загружен</p>
-                  <p className="text-xs text-center max-w-xs leading-relaxed">Опишите задачу и нажмите «Обработать файл»</p>
+                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>{t.fileLoadedTitle}</p>
+                  <p className="text-xs text-center max-w-xs leading-relaxed">{t.fileLoadedSub}</p>
                 </div>
               )}
 
@@ -573,7 +588,7 @@ export default function Home() {
               {status === "error" && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-3 p-12">
                   <div className="w-14 h-14 rounded-2xl grid place-items-center text-3xl border" style={{ background: "rgba(239,68,68,0.1)", borderColor: "rgba(239,68,68,0.3)" }}>⚠️</div>
-                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>Ошибка обработки</p>
+                  <p className="text-base font-semibold" style={{ color: "#e6edf3" }}>{t.errorTitle}</p>
                   <p className="text-xs text-center max-w-sm p-3 rounded-lg border leading-relaxed" style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.2)" }}>{errorMsg}</p>
                   <button onClick={() => setStatus("idle")} className="text-xs font-mono px-4 py-2 rounded-lg border transition-all" style={{ color: "#8b949e", borderColor: "#30363d" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#1c2128")}
@@ -591,7 +606,7 @@ export default function Home() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-semibold mb-1" style={{ color: "#e6edf3" }}>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#00D084" strokeWidth="1.3"/><path d="M4.5 7l2 2 3-3" stroke="#00D084" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                        Изменения внесены успешно
+                        {t.doneTitle}
                       </div>
                       {usedModelLabel && (
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: "#1c2128", color: "#8b949e", border: "1px solid #30363d" }}>
@@ -601,8 +616,8 @@ export default function Home() {
                     </div>
                     <p className="text-xs" style={{ color: "#8b949e" }}>
                       {changes.length > 0
-                        ? `Выполнено ${changes.length} ${changes.length === 1 ? "действие" : "действия"}`
-                        : "Файл обработан — скачайте результат"}
+                        ? t.doneChanges(changes.length)
+                        : t.doneFallback}
                     </p>
                   </div>
 
@@ -665,7 +680,7 @@ export default function Home() {
                   <div className="px-4 py-3 border-t flex items-center gap-3" style={{ borderColor: "#30363d" }}>
                     <div className="flex-1">
                       <p className="text-xs font-mono font-semibold" style={{ color: "#f97316" }}>{downloadName}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "#8b949e" }}>Готов к скачиванию</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "#8b949e" }}>{t.downloadReady}</p>
                     </div>
                     <button
                       data-testid="button-download"
@@ -676,7 +691,7 @@ export default function Home() {
                       onMouseLeave={e => (e.currentTarget.style.background = "#f97316")}
                     >
                       <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v7M3.5 6l3 3 3-3M1 11h11" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      Скачать .xlsx
+                      {t.downloadBtn}
                     </button>
                   </div>
                 </div>
