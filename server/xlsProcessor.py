@@ -61,25 +61,29 @@ def convert_xls_to_xlsx(xls_path: str) -> str:
     return tmp_path
 
 
-def ensure_xlsx(path: str):
+def ensure_xlsx(path: str, original_name: str = ""):
     """
-    If path is a .xls file, convert to .xlsx and return (new_path, True).
+    If file is a legacy .xls format (detected by original_name or path extension),
+    convert to .xlsx and return (new_path, True).
     Otherwise return (path, False). Second value indicates temp file was created.
     """
-    if path.lower().endswith(".xls") and not path.lower().endswith(".xlsx"):
+    name_to_check = original_name if original_name else path
+    # Match .xls but NOT .xlsx / .xlsm / .xlsb etc.
+    import re as _re
+    if _re.search(r'\.xls$', name_to_check, _re.IGNORECASE):
         converted = convert_xls_to_xlsx(path)
         return converted, True
     return path, False
 
 
-def analyze_file(path: str) -> dict:
+def analyze_file(path: str, original_name: str = "") -> dict:
     """Read xlsx structure: sheets, columns, row counts, sample data."""
     converted_path = None
     try:
         import openpyxl
 
         # Auto-convert .xls → .xlsx
-        work_path, was_converted = ensure_xlsx(path)
+        work_path, was_converted = ensure_xlsx(path, original_name)
         if was_converted:
             converted_path = work_path
 
@@ -119,7 +123,7 @@ def analyze_file(path: str) -> dict:
                 pass
 
 
-def execute_code(input_path: str, code: str, output_path: str) -> dict:
+def execute_code(input_path: str, code: str, output_path: str, original_name: str = "") -> dict:
     """
     Execute AI-generated openpyxl code in a restricted namespace.
     The code receives `wb` (openpyxl Workbook) and `ws` (active sheet).
@@ -133,7 +137,7 @@ def execute_code(input_path: str, code: str, output_path: str) -> dict:
         import re
 
         # Auto-convert .xls → .xlsx before execution
-        work_path, was_converted = ensure_xlsx(input_path)
+        work_path, was_converted = ensure_xlsx(input_path, original_name)
         if was_converted:
             converted_path = work_path
 
@@ -187,16 +191,18 @@ if __name__ == "__main__":
 
     if cmd == "analyze":
         path = sys.argv[2]
-        result = analyze_file(path)
+        original_name = sys.argv[3] if len(sys.argv) > 3 else ""
+        result = analyze_file(path, original_name)
         print(json.dumps(result, ensure_ascii=False))
 
     elif cmd == "execute":
         input_path = sys.argv[2]
         output_path = sys.argv[3]
         code_file = sys.argv[4]
+        original_name = sys.argv[5] if len(sys.argv) > 5 else ""
         with open(code_file, "r", encoding="utf-8") as f:
             code = f.read()
-        result = execute_code(input_path, code, output_path)
+        result = execute_code(input_path, code, output_path, original_name)
         print(json.dumps(result, ensure_ascii=False))
 
     else:

@@ -63,18 +63,18 @@ async function callLLM(modelId: string, systemPrompt: string, userPrompt: string
 // ─── Helper: run Python script ───────────────────────────────────────────────
 const PY_SCRIPT = path.join(process.cwd(), "server", "xlsProcessor.py");
 
-async function pyAnalyze(filePath: string) {
-  const { stdout } = await execFileAsync("python3", [PY_SCRIPT, "analyze", filePath], { timeout: 15000 });
+async function pyAnalyze(filePath: string, originalName: string) {
+  const { stdout } = await execFileAsync("python3", [PY_SCRIPT, "analyze", filePath, originalName], { timeout: 15000 });
   return JSON.parse(stdout.trim());
 }
 
-async function pyExecute(inputPath: string, outputPath: string, code: string) {
+async function pyExecute(inputPath: string, outputPath: string, code: string, originalName: string) {
   // Write code to temp file to avoid shell injection
   const codeFile = path.join(os.tmpdir(), `xls_code_${Date.now()}.py`);
   fs.writeFileSync(codeFile, code, "utf-8");
   try {
     const { stdout } = await execFileAsync(
-      "python3", [PY_SCRIPT, "execute", inputPath, outputPath, codeFile],
+      "python3", [PY_SCRIPT, "execute", inputPath, outputPath, codeFile, originalName],
       { timeout: 30000 }
     );
     return JSON.parse(stdout.trim());
@@ -128,7 +128,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/analyze-file", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     try {
-      const result = await pyAnalyze(req.file.path);
+      const result = await pyAnalyze(req.file.path, req.file.originalname);
       if (!result.ok) return res.status(422).json({ error: result.error });
       res.json({
         filename: req.file.originalname,
@@ -154,7 +154,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     try {
       // 1. Analyze structure
-      const analysis = await pyAnalyze(req.file.path);
+      const analysis = await pyAnalyze(req.file.path, req.file.originalname);
       if (!analysis.ok) return res.status(422).json({ error: analysis.error });
 
       // 2. Build LLM prompt with file structure
@@ -180,7 +180,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const origName = req.file.originalname.replace(/\.(xlsx|xls|xlsm)$/i, "");
       tempOutput = path.join(os.tmpdir(), `xls_out_${Date.now()}_${origName}_updated.xlsx`);
 
-      const execResult = await pyExecute(req.file.path, tempOutput, cleanCode);
+      const execResult = await pyExecute(req.file.path, tempOutput, cleanCode, req.file.originalname);
 
       if (!execResult.ok) {
         return res.status(422).json({
