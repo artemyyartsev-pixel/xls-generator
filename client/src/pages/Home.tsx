@@ -2,8 +2,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-// Resolve correct API base (handles __PORT_5001__ token replacement after deploy)
-const API_BASE = "__PORT_5001__".startsWith("__") ? "" : "__PORT_5001__";
+// Resolve correct API base (handles __PORT_5000__ token replacement after deploy)
+const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface SheetInfo {
