@@ -190,15 +190,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
         });
       }
 
-      // 5. Read output file and send as download
+      // 5. Read output file and return as JSON with base64
       const outBuffer = fs.readFileSync(tempOutput);
       const outFilename = `${origName}_updated.xlsx`;
 
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="${outFilename}"`);
-      res.setHeader("X-Changes", JSON.stringify(execResult.changes || []));
-      res.setHeader("X-Filename", outFilename);
-      res.send(outBuffer);
+      res.json({
+        ok: true,
+        filename: outFilename,
+        changes: execResult.changes || [],
+        file: outBuffer.toString("base64"),
+      });
 
     } catch (e: any) {
       res.status(500).json({ error: e.message });

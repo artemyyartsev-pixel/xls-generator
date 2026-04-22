@@ -147,27 +147,26 @@ export default function Home() {
 
       clearInterval(stepTimer);
 
-      if (!res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
         throw new Error(data.error || `Ошибка ${res.status}`);
       }
 
-      // Parse changes from header
-      const changesHeader = res.headers.get("X-Changes");
-      const outFilename = res.headers.get("X-Filename") || "updated.xlsx";
-      const parsedChanges: Change[] = changesHeader ? JSON.parse(decodeURIComponent(changesHeader)) : [];
-
-      // Create blob URL for download
-      const blob = await res.blob();
+      // Decode base64 file → blob URL
+      const byteChars = atob(data.file);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
 
-      setChanges(parsedChanges);
+      setChanges(data.changes || []);
       setDownloadUrl(url);
-      setDownloadName(outFilename);
+      setDownloadName(data.filename || "updated.xlsx");
       setLoadingStep(4);
       setStatus("done");
 
-      toast({ title: "Готово!", description: `Внесено изменений: ${parsedChanges.length}` });
+      toast({ title: "Готово!", description: `Внесено изменений: ${(data.changes || []).length}` });
     } catch (e: any) {
       clearInterval(stepTimer);
       setStatus("error");
