@@ -1,6 +1,6 @@
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, readFile } from "node:fs/promises";
+import { rm, readFile, writeFile } from "node:fs/promises";
 
 // server deps to bundle to reduce openat(2) syscalls
 // which helps cold start times
@@ -59,7 +59,39 @@ async function buildAll() {
   });
 }
 
-buildAll().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+async function generateSeoFiles() {
+  const BASE_URL = "https://xls-generator-production.up.railway.app";
+  const now = new Date().toISOString().split("T")[0];
+
+  // robots.txt
+  const robots = [
+    "User-agent: *",
+    "Allow: /",
+    "",
+    `Sitemap: ${BASE_URL}/sitemap.xml`,
+  ].join("\n");
+  await writeFile("dist/public/robots.txt", robots, "utf-8");
+  console.log("generated robots.txt");
+
+  // sitemap.xml
+  const urls = [
+    { loc: `${BASE_URL}/`, priority: "1.0", changefreq: "weekly" },
+  ];
+  const sitemap = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+    ...urls.map((u) =>
+      `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${now}</lastmod>\n    <changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+    ),
+    `</urlset>`,
+  ].join("\n");
+  await writeFile("dist/public/sitemap.xml", sitemap, "utf-8");
+  console.log("generated sitemap.xml");
+}
+
+buildAll()
+  .then(generateSeoFiles)
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
