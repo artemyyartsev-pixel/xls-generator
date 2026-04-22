@@ -76,6 +76,8 @@ export default function Home() {
   const [changes, setChanges] = useState<Change[]>([]);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState("");
+  const [usedModelLabel, setUsedModelLabel] = useState("");
+  const [resultKey, setResultKey] = useState(0); // increments on each new result
   const [errorMsg, setErrorMsg] = useState("");
 
   // Fetch models
@@ -158,15 +160,20 @@ export default function Home() {
       const byteArr = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
       const blob = new Blob([byteArr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      // Revoke previous blob URL to free memory
+      setDownloadUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
       const url = URL.createObjectURL(blob);
+      const currentModel = models.find(m => m.id === modelId);
 
       setChanges(data.changes || []);
       setDownloadUrl(url);
       setDownloadName(data.filename || "updated.xlsx");
+      setUsedModelLabel(currentModel?.label || modelId);
+      setResultKey(k => k + 1);
       setLoadingStep(4);
       setStatus("done");
 
-      toast({ title: "Готово!", description: `Внесено изменений: ${(data.changes || []).length}` });
+      toast({ title: `Готово! (${currentModel?.label || modelId})`, description: `Внесено изменений: ${(data.changes || []).length}` });
     } catch (e: any) {
       clearInterval(stepTimer);
       setStatus("error");
@@ -576,9 +583,16 @@ export default function Home() {
                 <div className="flex-1 flex flex-col">
                   {/* Summary */}
                   <div className="px-4 py-3 border-b" style={{ borderColor: "#30363d" }}>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold mb-1" style={{ color: "#e6edf3" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#00D084" strokeWidth="1.3"/><path d="M4.5 7l2 2 3-3" stroke="#00D084" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      Изменения внесены успешно
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold mb-1" style={{ color: "#e6edf3" }}>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="#00D084" strokeWidth="1.3"/><path d="M4.5 7l2 2 3-3" stroke="#00D084" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        Изменения внесены успешно
+                      </div>
+                      {usedModelLabel && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: "#1c2128", color: "#8b949e", border: "1px solid #30363d" }}>
+                          {usedModelLabel}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs" style={{ color: "#8b949e" }}>
                       {changes.length > 0
