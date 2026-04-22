@@ -3,13 +3,34 @@
 XLS Processor — reads xlsx structure and executes AI-generated openpyxl code.
 Supports .xls (legacy) via xlrd → openpyxl conversion.
 Called by Express via subprocess.
+
+IMPORTANT: multer saves uploaded files WITHOUT extension (/tmp/<hash>).
+openpyxl checks the file extension before opening, so we always create
+a temp copy with the correct extension before passing to openpyxl.
 """
 
 import sys
 import json
 import os
+import re
 import traceback
 import tempfile
+import shutil
+
+
+def get_ext(original_name: str) -> str:
+    """Get lowercase extension from original filename, e.g. '.xlsx' or '.xls'."""
+    if not original_name:
+        return ".xlsx"
+    m = re.search(r'\.(xlsx|xlsm|xls|xltx|xltm)$', original_name, re.IGNORECASE)
+    return m.group(0).lower() if m else ".xlsx"
+
+
+def make_temp_copy(path: str, ext: str) -> str:
+    """Create a temp copy of the file with the given extension. Caller must delete it."""
+    tmp = tempfile.mktemp(suffix=ext, dir=tempfile.gettempdir())
+    shutil.copy2(path, tmp)
+    return tmp
 
 
 def convert_xls_to_xlsx(xls_path: str) -> str:
@@ -19,6 +40,7 @@ def convert_xls_to_xlsx(xls_path: str) -> str:
     """
     import xlrd
     import openpyxl
+    import datetime
 
     wb_xls = xlrd.open_workbook(xls_path, formatting_info=False)
     wb_xlsx = openpyxl.Workbook()
@@ -35,14 +57,11 @@ def convert_xls_to_xlsx(xls_path: str) -> str:
                 if cell.ctype == 1:
                     value = cell.value
                 elif cell.ctype == 2:
-                    # Store as int if it's a whole number
                     value = int(cell.value) if cell.value == int(cell.value) else cell.value
                 elif cell.ctype == 4:
                     value = bool(cell.value)
                 elif cell.ctype == 3:
-                    # Convert xlrd date tuple to Python datetime
                     try:
-                        import datetime
                         date_tuple = xlrd.xldate_as_tuple(cell.value, wb_xls.datemode)
                         if date_tuple[3:] == (0, 0, 0):
                             value = datetime.date(*date_tuple[:3])
@@ -56,36 +75,42 @@ def convert_xls_to_xlsx(xls_path: str) -> str:
                 if value is not None and value != "":
                     ws_xlsx.cell(row=row_idx + 1, column=col_idx + 1, value=value)
 
-    tmp_path = xls_path + "_converted.xlsx"
+    tmp_path = tempfile.mktemp(suffix=".xlsx", dir=tempfile.gettempdir())
     wb_xlsx.save(tmp_path)
     return tmp_path
 
 
-def ensure_xlsx(path: str, original_name: str = ""):
+def prepare_file(path: str, original_name: str) -> tuple:
     """
-    If file is a legacy .xls format (detected by original_name or path extension),
-    convert to .xlsx and return (new_path, True).
-    Otherwise return (path, False). Second value indicates temp file was created.
+    Prepare file for openpyxl:
+    - If .xls: convert to .xlsx, return (converted_path, [converted_path])
+    - Otherwise: copy with correct extension, return (copy_path, [copy_path])
+    temps list contains paths to clean up.
     """
-    name_to_check = original_name if original_name else path
-    # Match .xls but NOT .xlsx / .xlsm / .xlsb etc.
-    import re as _re
-    if _re.search(r'\.xls$', name_to_check, _re.IGNORECASE):
-        converted = convert_xls_to_xlsx(path)
-        return converted, True
-    return path, False
+    ext = get_ext(original_name)
+    temps = []
+
+    if ext == ".xls":
+        # Need a temp copy with .xls extension first (for xlrd)
+        xls_copy = make_temp_copy(path, ".xls")
+        temps.append(xls_copy)
+        xlsx_path = convert_xls_to_xlsx(xls_copy)
+        temps.append(xlsx_path)
+        return xlsx_path, temps
+    else:
+        # Just copy with correct extension so openpyxl is happy
+        copy_path = make_temp_copy(path, ext)
+        temps.append(copy_path)
+        return copy_path, temps
 
 
 def analyze_file(path: str, original_name: str = "") -> dict:
     """Read xlsx structure: sheets, columns, row counts, sample data."""
-    converted_path = None
+    temps = []
     try:
         import openpyxl
 
-        # Auto-convert .xls → .xlsx
-        work_path, was_converted = ensure_xlsx(path, original_name)
-        if was_converted:
-            converted_path = work_path
+        work_path, temps = prepare_file(path, original_name)
 
         wb = openpyxl.load_workbook(work_path, read_only=True, data_only=True)
         sheets = []
@@ -96,11 +121,8 @@ def analyze_file(path: str, original_name: str = "") -> dict:
                 sheets.append({"name": sheet_name, "columns": [], "row_count": 0, "sample": []})
                 continue
 
-            # Headers from first row
             headers = [str(c) if c is not None else f"Col{i+1}" for i, c in enumerate(rows[0])]
-            # Count rows (approximate — read_only is fast)
             row_count = ws.max_row or 0
-            # Sample: first 5 data rows
             sample = []
             for row in rows[1:6]:
                 sample.append([str(v) if v is not None else "" for v in row])
@@ -116,9 +138,10 @@ def analyze_file(path: str, original_name: str = "") -> dict:
     except Exception as e:
         return {"ok": False, "error": str(e)}
     finally:
-        if converted_path and os.path.exists(converted_path):
+        for t in temps:
             try:
-                os.unlink(converted_path)
+                if os.path.exists(t):
+                    os.unlink(t)
             except Exception:
                 pass
 
@@ -126,24 +149,18 @@ def analyze_file(path: str, original_name: str = "") -> dict:
 def execute_code(input_path: str, code: str, output_path: str, original_name: str = "") -> dict:
     """
     Execute AI-generated openpyxl code in a restricted namespace.
-    The code receives `wb` (openpyxl Workbook) and `ws` (active sheet).
-    It must modify wb in place. Returns list of changes made.
     """
-    converted_path = None
+    temps = []
     try:
         import openpyxl
         from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
         from openpyxl.utils import get_column_letter, column_index_from_string
         import re
 
-        # Auto-convert .xls → .xlsx before execution
-        work_path, was_converted = ensure_xlsx(input_path, original_name)
-        if was_converted:
-            converted_path = work_path
+        work_path, temps = prepare_file(input_path, original_name)
 
         wb = openpyxl.load_workbook(work_path)
 
-        # Safe namespace — only openpyxl + builtins needed for spreadsheet work
         safe_globals = {
             "__builtins__": {
                 "range": range, "len": len, "print": print,
@@ -179,9 +196,10 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
     except Exception as e:
         return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
     finally:
-        if converted_path and os.path.exists(converted_path):
+        for t in temps:
             try:
-                os.unlink(converted_path)
+                if os.path.exists(t):
+                    os.unlink(t)
             except Exception:
                 pass
 
