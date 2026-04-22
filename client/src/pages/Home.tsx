@@ -32,16 +32,20 @@ interface Model {
   label: string;
   provider: string;
   available: boolean;
+  freeOnly?: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 // EXAMPLES is now built dynamically inside the component using t
 
 const FALLBACK_MODELS: Model[] = [
-  { id: "deepseek_v3", label: "DeepSeek V3", provider: "openrouter", available: true },
-  { id: "deepseek_r1", label: "DeepSeek R1", provider: "openrouter", available: true },
-  { id: "gpt_4o_mini", label: "GPT-4o mini", provider: "openrouter", available: true },
-  { id: "claude_sonnet", label: "Claude Sonnet", provider: "openrouter", available: true },
+  { id: "deepseek_v3",   label: "DeepSeek V3",           provider: "openrouter", available: true },
+  { id: "deepseek_r1",   label: "DeepSeek R1",           provider: "openrouter", available: true },
+  { id: "gpt_4o_mini",   label: "GPT-4o mini",           provider: "openrouter", available: true },
+  { id: "llama_3_3_70b", label: "Llama 3.3 70B (free)",  provider: "openrouter", available: true, freeOnly: true },
+  { id: "gemma_3_27b",   label: "Gemma 3 27B (free)",    provider: "openrouter", available: true, freeOnly: true },
+  { id: "qwen3_80b",     label: "Qwen3 80B (free)",      provider: "openrouter", available: true, freeOnly: true },
+  { id: "hermes_3_405b", label: "Hermes 3 405B (free)",  provider: "openrouter", available: true, freeOnly: true },
 ];
 
 function formatBytes(b: number) {
@@ -447,11 +451,14 @@ export default function Home() {
                     className="flex-1 rounded-lg text-[11px] font-mono px-2 py-1.5 outline-none border cursor-pointer"
                     style={{ background: "#1c2128", borderColor: "#30363d", color: "#e6edf3" }}
                   >
-                    {models.map(m => (
-                      <option key={m.id} value={m.id} disabled={!m.available}>
-                        {m.label}
-                      </option>
-                    ))}
+                    {models
+                      .filter(m => !m.freeOnly || lang === "en")
+                      .map(m => (
+                        <option key={m.id} value={m.id} disabled={!m.available}>
+                          {m.label}
+                        </option>
+                      ))
+                    }
                   </select>
                   <span className="text-[10px] font-mono px-2 py-1 rounded border flex-shrink-0" style={{ color: "#f97316", background: "rgba(249,115,22,0.1)", borderColor: "rgba(249,115,22,0.25)" }}>
                     OpenRouter

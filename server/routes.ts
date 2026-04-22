@@ -20,10 +20,16 @@ const upload = multer({
 });
 
 // ─── Models ──────────────────────────────────────────────────────────────────
-const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: string; label: string }> = {
-  deepseek_v3:    { provider: "openrouter", model: "deepseek/deepseek-chat",        label: "DeepSeek V3" },
-  deepseek_r1:    { provider: "openrouter", model: "deepseek/deepseek-r1",          label: "DeepSeek R1" },
-  gpt_4o_mini:    { provider: "openrouter", model: "openai/gpt-4o-mini",            label: "GPT-4o mini" },
+const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: string; label: string; freeOnly?: boolean }> = {
+  // Available in all regions (paid via OpenRouter)
+  deepseek_v3:    { provider: "openrouter", model: "deepseek/deepseek-chat",                     label: "DeepSeek V3" },
+  deepseek_r1:    { provider: "openrouter", model: "deepseek/deepseek-r1",                       label: "DeepSeek R1" },
+  gpt_4o_mini:    { provider: "openrouter", model: "openai/gpt-4o-mini",                         label: "GPT-4o mini" },
+  // Free models — shown only outside Russia (EN interface)
+  llama_3_3_70b:  { provider: "openrouter", model: "meta-llama/llama-3.3-70b-instruct:free",     label: "Llama 3.3 70B (free)",  freeOnly: true },
+  gemma_3_27b:    { provider: "openrouter", model: "google/gemma-3-27b-it:free",                 label: "Gemma 3 27B (free)",    freeOnly: true },
+  qwen3_80b:      { provider: "openrouter", model: "qwen/qwen3-next-80b-a3b-instruct:free",      label: "Qwen3 80B (free)",      freeOnly: true },
+  hermes_3_405b:  { provider: "openrouter", model: "nousresearch/hermes-3-llama-3.1-405b:free",  label: "Hermes 3 405B (free)",  freeOnly: true },
 };
 
 // ─── Helper: call OpenRouter ─────────────────────────────────────────────────
@@ -155,6 +161,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       label: m.label,
       provider: m.provider,
       available: hasOpenRouter,
+      freeOnly: m.freeOnly ?? false,
     })));
   });
 
