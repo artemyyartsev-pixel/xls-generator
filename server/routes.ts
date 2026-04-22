@@ -89,54 +89,51 @@ You will receive the file structure (sheets, columns, sample data) and the user'
 
 Generate Python code that uses openpyxl to modify the workbook. Rules:
 1. The variable "wb" is an already-loaded openpyxl Workbook. Use wb.active or wb["SheetName"] to access sheets.
-2. Available objects (DO NOT use import — everything is already available):
+2. Available objects (DO NOT use import statements — all are already in scope):
    - openpyxl, PatternFill, Font, Alignment, Border, Side
    - get_column_letter, column_index_from_string
    - BarChart, LineChart, PieChart, Reference, Series, DataPoint
-   - datetime (module), date, time, timedelta (use directly: date.today(), datetime.now())
+   - datetime  — this is the datetime CLASS (datetime.datetime). Use: isinstance(x, datetime), datetime.now()
+   - date      — datetime.date class. Use: isinstance(x, date), date.today()
+   - time      — datetime.time class
+   - timedelta — datetime.timedelta class
    - math, re, defaultdict, Counter
 3. After each significant change, append to the "changes" list:
    changes.append({"type": "add"|"modify"|"format"|"delete", "description": "...", "detail": "..."})
 4. Use English in code (variable names, comments). Russian is allowed only in string literals for cell values/messages.
-5. Do NOT use import statements — all needed modules are already available.
+5. Do NOT use import statements — everything is already available.
 6. Do NOT save the workbook — it will be saved automatically.
 7. Handle errors gracefully with try/except where appropriate.
 8. Be precise with column references — use the actual column names from the provided structure.
 9. Return ONLY the Python code, no markdown fences, no explanation.
-10. When working with dates from Excel cells, values may be datetime.datetime objects — use .year, .month, .day attributes.
-11. For charts: create data on the sheet first, then build the chart using Reference pointing to that data range.
+10. Date values from Excel cells are datetime objects — use isinstance(x, datetime) to check, then x.year, x.month, x.day.
+11. For charts: write data to sheet first, then build chart using Reference pointing to that data.
 
-Example for "add a chart showing sales by quarter":
+Example for "add chart showing mileage by year/quarter":
 ws2 = wb.create_sheet("Лист2")
-# Write summary data
-ws2.cell(row=1, column=1).value = "Квартал"
-ws2.cell(row=1, column=2).value = "Продажи"
+ws2.cell(row=1, column=1).value = "Период"
+ws2.cell(row=1, column=2).value = "Пробег"
 ws_data = wb["Лист1"]
-quarterly = {}
+by_period = defaultdict(float)
 for row in range(2, ws_data.max_row + 1):
     d = ws_data.cell(row=row, column=1).value
-    val = ws_data.cell(row=row, column=4).value
-    if hasattr(d, "month") and isinstance(val, (int, float)):
-        q = (d.month - 1) // 3 + 1
-        key = f"{d.year} Q{q}"
-        quarterly[key] = quarterly.get(key, 0) + val
-for i, (k, v) in enumerate(sorted(quarterly.items()), start=2):
+    v = ws_data.cell(row=row, column=2).value
+    if isinstance(d, datetime) and isinstance(v, (int, float)):
+        key = f"{d.year} Q{(d.month-1)//3+1}"
+        by_period[key] += v
+for i, (k, v) in enumerate(sorted(by_period.items()), start=2):
     ws2.cell(row=i, column=1).value = k
     ws2.cell(row=i, column=2).value = round(v, 2)
-# Build chart
-chart = BarChart()
-chart.title = "Продажи по кварталам"
-chart.y_axis.title = "Сумма"
-chart.x_axis.title = "Период"
+chart = LineChart()
+chart.title = "Динамика пробега"
+chart.width = 20
+chart.height = 12
 data_ref = Reference(ws2, min_col=2, min_row=1, max_row=ws2.max_row)
 cats_ref = Reference(ws2, min_col=1, min_row=2, max_row=ws2.max_row)
 chart.add_data(data_ref, titles_from_data=True)
 chart.set_categories(cats_ref)
-chart.shape = 4
-chart.width = 20
-chart.height = 12
 ws2.add_chart(chart, "D2")
-changes.append({"type": "add", "description": "Добавлен Лист2 со сводной таблицей и графиком", "detail": f"{len(quarterly)} кварталов"})`;
+changes.append({"type": "add", "description": "Добавлен Лист2 с графиком пробега", "detail": f"{len(by_period)} периодов"})`;
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 export function registerRoutes(httpServer: Server, app: Express) {

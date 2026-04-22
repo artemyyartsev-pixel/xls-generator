@@ -191,7 +191,8 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
             "get_column_letter": get_column_letter,
             "column_index_from_string": column_index_from_string,
             "re": re,
-            "datetime": datetime,
+            "datetime": datetime.datetime,  # datetime IS the class, not the module
+            "datetime_module": datetime,      # use datetime_module.now() if needed
             # datetime shortcuts — use these directly without datetime. prefix
             "date": datetime.date,
             "time": datetime.time,
