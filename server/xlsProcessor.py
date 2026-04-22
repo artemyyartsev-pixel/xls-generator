@@ -163,9 +163,9 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
 
         from openpyxl.chart import BarChart, LineChart, PieChart, Reference, Series
         from openpyxl.chart.series import DataPoint
-        from openpyxl.utils.dataframe import dataframe_to_rows
         import datetime
         import math
+        from collections import defaultdict, Counter
 
         safe_globals = {
             "__builtins__": {
@@ -192,13 +192,20 @@ def execute_code(input_path: str, code: str, output_path: str, original_name: st
             "column_index_from_string": column_index_from_string,
             "re": re,
             "datetime": datetime,
+            # datetime shortcuts — use these directly without datetime. prefix
+            "date": datetime.date,
+            "time": datetime.time,
+            "timedelta": datetime.timedelta,
             "math": math,
+            "defaultdict": defaultdict,
+            "Counter": Counter,
             # Chart classes
             "BarChart": BarChart,
             "LineChart": LineChart,
             "PieChart": PieChart,
             "Reference": Reference,
             "Series": Series,
+            "DataPoint": DataPoint,
             "wb": wb,
             "changes": [],
         }
