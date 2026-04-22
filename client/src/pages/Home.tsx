@@ -167,10 +167,12 @@ export default function Home() {
 
       setChanges(data.changes || []);
       setDownloadUrl(url);
-      // Add model suffix to filename so browser treats each result as a new file
+      // Add model + datetime suffix so every download is unique
       const baseName = (data.filename || "updated.xlsx").replace(/\.xlsx$/i, "");
       const modelSuffix = (currentModel?.label || modelId).replace(/[^a-zA-Z0-9а-яА-Я]/g, "_");
-      setDownloadName(`${baseName}_${modelSuffix}.xlsx`);
+      const now = new Date();
+      const dateSuffix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
+      setDownloadName(`${baseName}_${modelSuffix}_${dateSuffix}.xlsx`);
       setUsedModelLabel(currentModel?.label || modelId);
       setResultKey(k => k + 1);
       setLoadingStep(4);
