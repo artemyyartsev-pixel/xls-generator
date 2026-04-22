@@ -14,18 +14,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-# Install ALL deps (including devDeps) so tsx is available for build
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+# Explicitly install ALL deps including devDependencies (tsx needs to be available for build)
+RUN npm install --include=dev
 
 COPY requirements.txt ./
 RUN pip3 install --break-system-packages -r requirements.txt
 
 COPY . .
 
-# Build (tsx is available because devDeps are installed)
+# Build frontend + server bundle (tsx available from devDeps)
 RUN npm run build
 
-# Remove devDependencies after build to keep image lean
+# Prune devDeps after build to keep image lean
 RUN npm prune --production
 
 ENV NODE_ENV=production
