@@ -24,7 +24,6 @@ const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: stri
   deepseek_v3:    { provider: "openrouter", model: "deepseek/deepseek-chat",        label: "DeepSeek V3" },
   deepseek_r1:    { provider: "openrouter", model: "deepseek/deepseek-r1",          label: "DeepSeek R1" },
   gpt_4o_mini:    { provider: "openrouter", model: "openai/gpt-4o-mini",            label: "GPT-4o mini" },
-  claude_sonnet:  { provider: "openrouter", model: "anthropic/claude-sonnet-4-5",   label: "Claude Sonnet" },
 };
 
 // ─── Helper: call OpenRouter ─────────────────────────────────────────────────
