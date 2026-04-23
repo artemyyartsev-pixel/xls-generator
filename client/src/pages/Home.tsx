@@ -86,11 +86,24 @@ export default function Home() {
   const [resultKey, setResultKey] = useState(0); // increments on each new result
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Fetch models
+  // Fetch models — merge server response with FALLBACK_MODELS to preserve freeOnly flag
   useEffect(() => {
     apiRequest("GET", "/api/models")
       .then(r => r.json())
-      .then((data: Model[]) => { if (data?.length) setModels(data); })
+      .then((serverModels: Model[]) => {
+        if (!serverModels?.length) return;
+        // Merge: take all from FALLBACK_MODELS, override fields from server where id matches
+        const serverMap = new Map(serverModels.map(m => [m.id, m]));
+        const merged = FALLBACK_MODELS.map(fb => {
+          const srv = serverMap.get(fb.id);
+          return srv ? { ...fb, ...srv, freeOnly: fb.freeOnly } : fb;
+        });
+        // Also add any server models not in fallback (future additions)
+        serverModels.forEach(srv => {
+          if (!merged.find(m => m.id === srv.id)) merged.push(srv);
+        });
+        setModels(merged);
+      })
       .catch(() => {});
   }, []);
 
