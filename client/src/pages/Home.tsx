@@ -304,7 +304,7 @@ export default function Home() {
             </a>
             <div className="flex items-center gap-1.5 px-3 py-[5px] rounded-md text-xs font-mono font-medium border" style={{ color: "#f97316", background: "rgba(249,115,22,0.12)", borderColor: "rgba(249,115,22,0.25)" }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#f97316" }} />
-              XLS Generator
+              AI XLS Generator
             </div>
           </nav>
 

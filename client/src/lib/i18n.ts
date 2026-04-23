@@ -5,10 +5,10 @@ export const translations = {
     // Header
     headerTitle: "AI Tools для Excel",
     tabVba: "VBA Generator",
-    tabXls: "XLS Generator",
+    tabXls: "AI XLS Generator",
 
     // Hero
-    heroBadge: "XLS Generator — Beta",
+    heroBadge: "AI XLS Generator — Beta",
     heroTitle1: "Загрузите Excel —",
     heroAccent: "получите доработанный файл",
     heroSub: "Опишите задачу на русском. ИИ проанализирует структуру, внесёт изменения и вернёт готовый .xlsx",
@@ -82,10 +82,10 @@ export const translations = {
     // Header
     headerTitle: "AI Tools for Excel",
     tabVba: "VBA Generator",
-    tabXls: "XLS Generator",
+    tabXls: "AI XLS Generator",
 
     // Hero
-    heroBadge: "XLS Generator — Beta",
+    heroBadge: "AI XLS Generator — Beta",
     heroTitle1: "Upload Excel —",
     heroAccent: "get the improved file",
     heroSub: "Describe your task in plain language. AI will analyze the structure, make changes and return a ready .xlsx file.",

@@ -44,7 +44,7 @@ async function callLLM(modelId: string, systemPrompt: string, userPrompt: string
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://xls-generator.app",
-      "X-Title": "XLS Generator",
+      "X-Title": "AI XLS Generator",
     },
     body: JSON.stringify({
       model: m.model,
