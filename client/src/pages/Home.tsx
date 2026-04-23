@@ -145,6 +145,13 @@ export default function Home() {
   }, [handleFile]);
 
   // ─── Process ────────────────────────────────────────────────────────────────
+  // GA4 helper — fires only when gtag is available (production)
+  function gtagEvent(name: string, params?: Record<string, string | number>) {
+    if (typeof (window as any).gtag === "function") {
+      (window as any).gtag("event", name, params);
+    }
+  }
+
   async function handleProcess() {
     if (!file || !task.trim()) return;
     setStatus("processing");
@@ -152,6 +159,14 @@ export default function Home() {
     setChanges([]);
     setDownloadUrl(null);
     setErrorMsg("");
+
+    // GA4: user started a generation
+    const currentModelLabel = models.find(m => m.id === modelId)?.label || modelId;
+    gtagEvent("generate_start", {
+      model: currentModelLabel,
+      language: lang,
+      file_name: file.name,
+    });
 
     // Animate steps
     const stepTimer = setInterval(() => {
@@ -197,11 +212,26 @@ export default function Home() {
       setLoadingStep(4);
       setStatus("done");
 
+      // GA4: successful generation
+      gtagEvent("generate_success", {
+        model: currentModel?.label || modelId,
+        language: lang,
+        changes_count: (data.changes || []).length,
+      });
+
       toast({ title: t.toastDoneTitle(currentModel?.label || modelId), description: t.toastDoneDesc((data.changes || []).length) });
     } catch (e: any) {
       clearInterval(stepTimer);
       setStatus("error");
       setErrorMsg(e.message);
+
+      // GA4: generation failed
+      gtagEvent("generate_error", {
+        model: currentModelLabel,
+        language: lang,
+        error_message: e.message?.slice(0, 100),
+      });
+
       toast({ title: t.toastProcessError, description: e.message, variant: "destructive" });
     }
   }
