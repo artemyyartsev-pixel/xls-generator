@@ -158,10 +158,27 @@ export const translations = {
 export type Translations = typeof translations.ru;
 
 /** Detect language from browser locale — default RU for Russian speakers */
+// CIS country codes — show RU interface
+const RU_COUNTRIES = new Set(["RU", "BY", "KZ", "UZ", "TJ", "TM", "KG", "AZ", "AM", "GE", "MD"]);
+
+// Synchronous fallback: browser language while IP lookup is in flight
 export function detectLang(): Lang {
   const langs = navigator.languages ?? [navigator.language ?? "ru"];
   for (const l of langs) {
     if (l.toLowerCase().startsWith("ru")) return "ru";
   }
   return "en";
+}
+
+// Async IP-based detection — call once on mount
+// manualLang: if user already switched manually, skip IP lookup
+export async function detectLangByIP(manualLang: Lang | null): Promise<Lang> {
+  if (manualLang) return manualLang;
+  try {
+    const res = await fetch("https://ip-api.com/json/?fields=countryCode", { signal: AbortSignal.timeout(3000) });
+    const { countryCode } = await res.json();
+    return RU_COUNTRIES.has(countryCode) ? "ru" : "en";
+  } catch {
+    return detectLang();
+  }
 }

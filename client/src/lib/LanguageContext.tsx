@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from "react";
-import { Lang, translations, detectLang, Translations } from "./i18n";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import { Lang, translations, detectLang, detectLangByIP, Translations } from "./i18n";
 
 interface LangContextValue {
   lang: Lang;
@@ -10,7 +10,24 @@ interface LangContextValue {
 const LangContext = createContext<LangContextValue | null>(null);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>(detectLang);
+  // Synchronous initial value from browser lang (no flash)
+  const [lang, setLangState] = useState<Lang>(detectLang);
+  // Track whether user manually switched — stored in memory only (no localStorage)
+  const manualLang = useRef<Lang | null>(null);
+
+  // On mount: async IP geolocation, skip if user already switched
+  useEffect(() => {
+    detectLangByIP(manualLang.current).then(detected => {
+      if (!manualLang.current) setLangState(detected);
+    });
+  }, []);
+
+  // When user manually switches: lock in choice for this session
+  function setLang(l: Lang) {
+    manualLang.current = l;
+    setLangState(l);
+  }
+
   const t = translations[lang] as Translations;
   return (
     <LangContext.Provider value={{ lang, setLang, t }}>
