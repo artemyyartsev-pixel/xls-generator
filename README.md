@@ -61,10 +61,15 @@ All models run through OpenRouter (works from Russia without VPN):
 
 | Model | ID |
 |---|---|
+| Claude 3.5 Sonnet | `anthropic/claude-sonnet-4-5` |
+| Claude 3 Opus | `anthropic/claude-3-opus` |
 | DeepSeek V3 | `deepseek/deepseek-chat` |
 | DeepSeek R1 | `deepseek/deepseek-r1` |
 | GPT-4o mini | `openai/gpt-4o-mini` |
-| Claude Sonnet | `anthropic/claude-sonnet-4-5` |
+| Llama 3.3 70B (free) | `meta-llama/llama-3.3-70b-instruct:free` |
+| Gemma 3 27B (free) | `google/gemma-3-27b-it:free` |
+| Qwen3 80B (free) | `qwen/qwen3-next-80b-a3b-instruct:free` |
+| Hermes 3 405B (free) | `nousresearch/hermes-3-llama-3.1-405b:free` |
 
 ## Part of AI Tools для Excel
 

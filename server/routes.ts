@@ -25,6 +25,8 @@ const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: stri
   deepseek_v3:    { provider: "openrouter", model: "deepseek/deepseek-chat",                     label: "DeepSeek V3" },
   deepseek_r1:    { provider: "openrouter", model: "deepseek/deepseek-r1",                       label: "DeepSeek R1" },
   gpt_4o_mini:    { provider: "openrouter", model: "openai/gpt-4o-mini",                         label: "GPT-4o mini" },
+  claude_sonnet_45: { provider: "openrouter", model: "anthropic/claude-sonnet-4-5",              label: "Claude 3.5 Sonnet" },
+  claude_opus:    { provider: "openrouter", model: "anthropic/claude-3-opus",                    label: "Claude 3 Opus" },
   // Free models — shown only outside Russia (EN interface)
   llama_3_3_70b:  { provider: "openrouter", model: "meta-llama/llama-3.3-70b-instruct:free",     label: "Llama 3.3 70B (free)",  freeOnly: true },
   gemma_3_27b:    { provider: "openrouter", model: "google/gemma-3-27b-it:free",                 label: "Gemma 3 27B (free)",    freeOnly: true },
