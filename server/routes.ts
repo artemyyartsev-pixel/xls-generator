@@ -35,7 +35,7 @@ const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: stri
 };
 
 // ─── Helper: call OpenRouter ─────────────────────────────────────────────────
-async function callLLM(modelId: string, systemPrompt: string, userPrompt: string): Promise<string> {
+export async function callLLM(modelId: string, systemPrompt: string, userPrompt: string): Promise<string> {
   const m = MODELS[modelId] || MODELS.deepseek_v3;
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
@@ -70,12 +70,12 @@ async function callLLM(modelId: string, systemPrompt: string, userPrompt: string
 // ─── Helper: run Python script ───────────────────────────────────────────────
 const PY_SCRIPT = path.join(process.cwd(), "server", "xlsProcessor.py");
 
-async function pyAnalyze(filePath: string, originalName: string) {
+export async function pyAnalyze(filePath: string, originalName: string) {
   const { stdout } = await execFileAsync("python3", [PY_SCRIPT, "analyze", filePath, originalName], { timeout: 15000 });
   return JSON.parse(stdout.trim());
 }
 
-async function pyExecute(inputPath: string, outputPath: string, code: string, originalName: string) {
+export async function pyExecute(inputPath: string, outputPath: string, code: string, originalName: string) {
   // Write code to temp file to avoid shell injection
   const codeFile = path.join(os.tmpdir(), `xls_code_${Date.now()}.py`);
   fs.writeFileSync(codeFile, code, "utf-8");
@@ -89,6 +89,12 @@ async function pyExecute(inputPath: string, outputPath: string, code: string, or
     fs.unlink(codeFile, () => {});
   }
 }
+
+export const runtime = {
+  callLLM,
+  pyAnalyze,
+  pyExecute,
+};
 
 // ─── System prompt ───────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are an expert Python/openpyxl developer. The user will describe a task to perform on an Excel file.
@@ -171,7 +177,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/analyze-file", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     try {
-      const result = await pyAnalyze(req.file.path, fixFilename(req.file.originalname));
+      const result = await runtime.pyAnalyze(req.file.path, fixFilename(req.file.originalname));
       if (!result.ok) return res.status(422).json({ error: result.error });
       res.json({
         filename: fixFilename(req.file.originalname),
@@ -197,7 +203,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     try {
       // 1. Analyze structure
-      const analysis = await pyAnalyze(req.file.path, fixFilename(req.file.originalname));
+      const analysis = await runtime.pyAnalyze(req.file.path, fixFilename(req.file.originalname));
       if (!analysis.ok) return res.status(422).json({ error: analysis.error });
 
       // 2. Build LLM prompt with file structure
@@ -210,7 +216,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const userPrompt = `File structure:\n${structureDesc}\n\nUser task: ${task}`;
 
       // 3. Generate Python code via LLM
-      const code = await callLLM(modelId, SYSTEM_PROMPT, userPrompt);
+      const code = await runtime.callLLM(modelId, SYSTEM_PROMPT, userPrompt);
 
       // Strip markdown fences if LLM added them
       const cleanCode = code
@@ -223,7 +229,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const origName = fixFilename(req.file.originalname).replace(/\.(xlsx|xls|xlsm)$/i, "");
       tempOutput = path.join(os.tmpdir(), `xls_out_${Date.now()}_${origName}_updated.xlsx`);
 
-      const execResult = await pyExecute(req.file.path, tempOutput, cleanCode, fixFilename(req.file.originalname));
+const execResult = await runtime.pyExecute(req.file.path, tempOutput, cleanCode, fixFilename(req.file.originalname));
 
       if (!execResult.ok) {
         return res.status(422).json({

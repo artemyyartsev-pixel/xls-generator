@@ -70,7 +70,7 @@ export default function Home() {
 
   const [models, setModels] = useState<Model[]>(FALLBACK_MODELS);
   const [modelId, setModelId] = useState("deepseek_v3");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [analysis, setAnalysis] = useState<FileAnalysis | null>(null);
   const [activeSheet, setActiveSheet] = useState(0);
   const [task, setTask] = useState("");
@@ -108,12 +108,14 @@ export default function Home() {
   }, []);
 
   // ─── File handling ──────────────────────────────────────────────────────────
-  const handleFile = useCallback(async (f: File) => {
-    if (!/\.(xlsx|xls|xlsm)$/i.test(f.name)) {
+  const handleFiles = useCallback(async (fileList: FileList | File[]) => {
+    const fileArray = Array.from(fileList);
+    const validFiles = fileArray.filter(f => /\.(xlsx|xls|xlsm)$/i.test(f.name));
+    if (validFiles.length === 0) {
       toast({ title: "Неверный формат", description: "Поддерживаются .xlsx, .xls, .xlsm", variant: "destructive" });
       return;
     }
-    setFile(f);
+    setFiles(validFiles);
     setAnalysis(null);
     setStatus("analyzing");
     setChanges([]);
@@ -121,8 +123,9 @@ export default function Home() {
     setErrorMsg("");
 
     try {
+      // Analyze first file for structure preview
       const fd = new FormData();
-      fd.append("file", f);
+      fd.append("file", validFiles[0]);
       const res = await fetch(`${API_BASE}/api/analyze-file`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка анализа");
@@ -140,9 +143,8 @@ export default function Home() {
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  }, [handleFile]);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
 
   // ─── Process ────────────────────────────────────────────────────────────────
   // GA4 helper — fires only when gtag is available (production)
@@ -153,7 +155,7 @@ export default function Home() {
   }
 
   async function handleProcess() {
-    if (!file || !task.trim()) return;
+    if (files.length === 0 || !task.trim()) return;
     setStatus("processing");
     setLoadingStep(1);
     setChanges([]);
@@ -165,7 +167,7 @@ export default function Home() {
     gtagEvent("generate_start", {
       model: currentModelLabel,
       language: lang,
-      file_name: file.name,
+      file_count: files.length,
     });
 
     // Animate steps
@@ -175,11 +177,11 @@ export default function Home() {
 
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      files.forEach(f => fd.append("files", f));
       fd.append("task", task);
       fd.append("modelId", modelId);
 
-      const res = await fetch(`${API_BASE}/api/process-file`, { method: "POST", body: fd });
+      const res = await fetch(`${API_BASE}/api/process-files`, { method: "POST", body: fd });
 
       clearInterval(stepTimer);
 
@@ -189,24 +191,26 @@ export default function Home() {
         throw new Error(data.error || `Ошибка ${res.status}`);
       }
 
-      // Decode base64 file → blob URL
-      const byteChars = atob(data.file);
+      // Decode base64 archive → blob URL
+      const byteChars = atob(data.archive);
       const byteArr = new Uint8Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const blob = new Blob([byteArr], { type: "application/zip" });
       // Revoke previous blob URL to free memory
       setDownloadUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null; });
       const url = URL.createObjectURL(blob);
       const currentModel = models.find(m => m.id === modelId);
 
-      setChanges(data.changes || []);
+      // For batch, aggregate changes from all files
+      const allChanges = data.files.flatMap((f: any) => f.changes || []);
+      setChanges(allChanges);
       setDownloadUrl(url);
-      // Add model + datetime suffix so every download is unique
-      const baseName = (data.filename || "updated.xlsx").replace(/\.xlsx$/i, "");
+      // Add model + datetime suffix
+      const baseName = (data.filename || "batch_results.zip").replace(/\.zip$/i, "");
       const modelSuffix = (currentModel?.label || modelId).replace(/[^a-zA-Z0-9а-яА-Я]/g, "_");
       const now = new Date();
       const dateSuffix = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}_${String(now.getHours()).padStart(2,"0")}${String(now.getMinutes()).padStart(2,"0")}`;
-      setDownloadName(`${baseName}_${modelSuffix}_${dateSuffix}.xlsx`);
+      setDownloadName(`${baseName}_${modelSuffix}_${dateSuffix}.zip`);
       setUsedModelLabel(currentModel?.label || modelId);
       setResultKey(k => k + 1);
       setLoadingStep(4);
@@ -216,10 +220,11 @@ export default function Home() {
       gtagEvent("generate_success", {
         model: currentModel?.label || modelId,
         language: lang,
-        changes_count: (data.changes || []).length,
+        file_count: files.length,
+        changes_count: allChanges.length,
       });
 
-      toast({ title: t.toastDoneTitle(currentModel?.label || modelId), description: t.toastDoneDesc((data.changes || []).length) });
+      toast({ title: t.toastDoneTitle(currentModel?.label || modelId), description: t.toastDoneDesc(allChanges.length) });
     } catch (e: any) {
       clearInterval(stepTimer);
       setStatus("error");
@@ -369,7 +374,7 @@ export default function Home() {
                     background: isDragging || analysis ? "rgba(249,115,22,0.08)" : "transparent",
                     borderStyle: analysis ? "solid" : "dashed",
                   }}
-                  onClick={() => !isLoading && fileInputRef.current?.click()}
+                  onClick={() => !isLoading && files.length === 0 && fileInputRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={onDrop}
@@ -378,8 +383,9 @@ export default function Home() {
                     ref={fileInputRef}
                     type="file"
                     accept=".xlsx,.xls,.xlsm"
+                    multiple
                     className="hidden"
-                    onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
+                    onChange={e => e.target.files && handleFiles(e.target.files)}
                   />
                   {status === "analyzing" ? (
                     <div className="flex flex-col items-center gap-2">
@@ -389,7 +395,9 @@ export default function Home() {
                   ) : analysis ? (
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-3xl">📊</span>
-                      <p className="text-sm font-semibold font-mono" style={{ color: "#f97316" }}>{analysis.filename}</p>
+                      <p className="text-sm font-semibold font-mono" style={{ color: "#f97316" }}>
+                        {files.length === 1 ? files[0].name : `${files.length} files selected`}
+                      </p>
                       <p className="text-xs" style={{ color: "#8b949e" }}>{t.uploadReplace}</p>
                     </div>
                   ) : (
@@ -411,7 +419,9 @@ export default function Home() {
                   <div className="rounded-lg p-3 mb-3 flex items-start gap-2.5 border" style={{ background: "#1c2128", borderColor: "#30363d" }}>
                     <div className="w-7 h-7 rounded-md grid place-items-center text-sm flex-shrink-0" style={{ background: "rgba(249,115,22,0.15)" }}>📊</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-mono font-semibold truncate" style={{ color: "#f97316" }}>{analysis.filename}</p>
+                      <p className="text-xs font-mono font-semibold truncate" style={{ color: "#f97316" }}>
+                        {files.length === 1 ? files[0].name : `${files.length} files`}
+                      </p>
                       <p className="text-[11px] mt-0.5" style={{ color: "#8b949e" }}>
                         {t.sheetLabel(analysis.sheets.length, analysis.sheets[0]?.row_count ?? 0, formatBytes(analysis.size))}
                       </p>
@@ -512,12 +522,12 @@ export default function Home() {
                 <button
                   data-testid="button-process"
                   onClick={handleProcess}
-                  disabled={!file || !task.trim() || isLoading}
+                  disabled={files.length === 0 || !task.trim() || isLoading}
                   className="w-full rounded-xl font-mono text-sm font-semibold py-2.5 flex items-center justify-center gap-2 transition-all"
                   style={{
-                    background: (!file || !task.trim() || isLoading) ? "#1c2128" : "#f97316",
-                    color: (!file || !task.trim() || isLoading) ? "#8b949e" : "#fff",
-                    cursor: (!file || !task.trim() || isLoading) ? "not-allowed" : "pointer",
+                    background: (files.length === 0 || !task.trim() || isLoading) ? "#1c2128" : "#f97316",
+                    color: (files.length === 0 || !task.trim() || isLoading) ? "#8b949e" : "#fff",
+                    cursor: (files.length === 0 || !task.trim() || isLoading) ? "not-allowed" : "pointer",
                   }}
                 >
                   {isLoading ? (
@@ -547,7 +557,7 @@ export default function Home() {
                   <button
                     key={i}
                     data-testid={`example-${i}`}
-                    onClick={() => { setTask(ex.task); if (!file) fileInputRef.current?.click(); }}
+                    onClick={() => { setTask(ex.task); if (files.length === 0) fileInputRef.current?.click(); }}
                     className="p-3 flex items-start gap-2.5 text-left transition-all border-r border-b"
                     style={{ borderColor: "#30363d" }}
                     onMouseEnter={e => (e.currentTarget.style.background = "#1c2128")}
