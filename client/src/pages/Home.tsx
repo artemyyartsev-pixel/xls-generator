@@ -42,10 +42,12 @@ const FALLBACK_MODELS: Model[] = [
   { id: "deepseek_v3",   label: "DeepSeek V3",           provider: "openrouter", available: true },
   { id: "deepseek_r1",   label: "DeepSeek R1",           provider: "openrouter", available: true },
   { id: "gpt_4o_mini",   label: "GPT-4o mini",           provider: "openrouter", available: true },
+  { id: "kimi_k2_6",     label: "Kimi K2.6",             provider: "openrouter", available: true },
   { id: "llama_3_3_70b", label: "Llama 3.3 70B (free)",  provider: "openrouter", available: true, freeOnly: true },
   { id: "gemma_3_27b",   label: "Gemma 3 27B (free)",    provider: "openrouter", available: true, freeOnly: true },
   { id: "qwen3_80b",     label: "Qwen3 80B (free)",      provider: "openrouter", available: true, freeOnly: true },
   { id: "hermes_3_405b", label: "Hermes 3 405B (free)",  provider: "openrouter", available: true, freeOnly: true },
+  { id: "kimi_k2_free",  label: "Kimi K2 (free)",        provider: "openrouter", available: true, freeOnly: true },
 ];
 
 function formatBytes(b: number) {

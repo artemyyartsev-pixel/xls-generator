@@ -25,11 +25,14 @@ const MODELS: Record<string, { provider: "openrouter" | "anthropic"; model: stri
   deepseek_v3:    { provider: "openrouter", model: "deepseek/deepseek-chat",                     label: "DeepSeek V3" },
   deepseek_r1:    { provider: "openrouter", model: "deepseek/deepseek-r1",                       label: "DeepSeek R1" },
   gpt_4o_mini:    { provider: "openrouter", model: "openai/gpt-4o-mini",                         label: "GPT-4o mini" },
+  // Available in all regions (paid via OpenRouter)
+  kimi_k2_6:      { provider: "openrouter", model: "moonshotai/kimi-k2.6",                       label: "Kimi K2.6" },
   // Free models — shown only outside Russia (EN interface)
   llama_3_3_70b:  { provider: "openrouter", model: "meta-llama/llama-3.3-70b-instruct:free",     label: "Llama 3.3 70B (free)",  freeOnly: true },
   gemma_3_27b:    { provider: "openrouter", model: "google/gemma-3-27b-it:free",                 label: "Gemma 3 27B (free)",    freeOnly: true },
   qwen3_80b:      { provider: "openrouter", model: "qwen/qwen3-next-80b-a3b-instruct:free",      label: "Qwen3 80B (free)",      freeOnly: true },
   hermes_3_405b:  { provider: "openrouter", model: "nousresearch/hermes-3-llama-3.1-405b:free",  label: "Hermes 3 405B (free)",  freeOnly: true },
+  kimi_k2_free:   { provider: "openrouter", model: "moonshotai/kimi-k2:free",                    label: "Kimi K2 (free)",         freeOnly: true },
 };
 
 // ─── Helper: call OpenRouter ─────────────────────────────────────────────────
